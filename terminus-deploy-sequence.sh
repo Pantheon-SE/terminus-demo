@@ -36,7 +36,7 @@ declare -rx CMDS=(
   "terminus site:upstream:clear-cache $SITE -q"
   "terminus connection:set $DEV git -q"
   "terminus upstream:updates:apply $DEV -q"
-  "terminus drush $DEV -- updb -y"
+  "terminus drush $DEV -q -- updb -y"
   "terminus env:clear-cache $DEV -q"
   "terminus env:deploy $TEST --cc --updatedb -n -q"
   "terminus env:deploy $LIVE --cc --updatedb -n -q"
@@ -58,18 +58,17 @@ ORGS=$(terminus orgs --format json)
 ORG_NAME=$(echo ${ORGS} | jq -r --arg key ${SITE_ORG} '.[$key].label')
 
 # Debug
-echo "${green_bg}${black}--- Site Information ---${reset}
+echo -e "${green_bg}${black}-------- Site Information --------${reset}
 ${green}Name:${reset}           ${SITE_NAME}
 ${green}Upstream:${reset}       ${UPSTREAM_NAME}
-${green}Organization:${reset}   ${ORG_NAME}"
-
+${green}Organization:${reset}   ${ORG_NAME}
+"
 
 # echo -e "Checking code status...\n"
 # STATUS=$(terminus upstream:update:status "${1}.dev")
 # echo -e "Code status: ${STATUS}\n"
 
-source ./progress.sh
-start
+source progress.sh && start
 
 # Report time to results.
 DURATION=$(( SECONDS - START ))
