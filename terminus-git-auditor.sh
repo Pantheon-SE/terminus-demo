@@ -1,7 +1,7 @@
-#! /bin/bash
+#!/bin/bash -e
 
 # Example usage
-# ./pantheon-git-auditor.sh <upstream_id>
+# ./terminus-git-auditor.sh <upstream_id>
 
 # Notes
 # - This script is intended to be run on Pantheon upstreams.
@@ -152,4 +152,5 @@ jq -n "$SITES" | jq '. | to_entries | .[].key' | while read i; do
     echo "${SITE_ID},${SITE_NAME},${UPSTREAM_NAME},${UPSTREAM_STATUS},${DIFF_STATUS}" >> $AUDIT_FILE
 done
 
+# Print audit status and path to results.
 echo "${green}Audit complete, results here:${reset} ${AUDIT_FILE}"

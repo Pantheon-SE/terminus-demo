@@ -2,7 +2,7 @@
 # shellcheck disable=SC1091
 
 # Usage
-# ./deploy-sequence.sh <site-name or uuid>
+# ./terminus-deploy-sequence.sh <site-name or uuid>
 
 # Color codes
 black=`tput setaf 0`
@@ -35,7 +35,7 @@ declare -rx STEPS=(
 declare -rx CMDS=(
   "terminus site:upstream:clear-cache $SITE -q"
   "terminus connection:set $DEV git -q"
-  "terminus upstream:updates:apply $DEV -q"
+  "terminus upstream:updates:apply $DEV --accept-upstream -q"
   "terminus drush $DEV -q -- updb -y"
   "terminus env:clear-cache $DEV -q"
   "terminus env:deploy $TEST --cc --updatedb -n -q"
