@@ -4,6 +4,8 @@
 # Usage
 # ./terminus-deploy-sequence.sh <site-name or uuid>
 
+# Dependencies : Terminus, jq
+
 # Color codes
 black=`tput setaf 0`
 red=`tput setaf 1`
