@@ -68,6 +68,16 @@ echo "${green}Cloning the upstream...${reset}"
 git clone -b master --single-branch ${UPSTREAM_GIT} ${UPSTREAM_NAME}
 cd ${UPSTREAM_NAME}
 
+# Define the signal handler function
+cleanup() {
+  echo "Performing cleanup before script exit..."
+  cd ../
+  rm -rf ${UPSTREAM_NAME}
+}
+
+# Set the trap to execute the cleanup function
+trap cleanup EXIT
+
 # Get upstream site list
 echo ""
 echo "${green}Getting upstream site list...${reset}"
@@ -75,21 +85,33 @@ SITES=$(terminus org:site:list "${UPSTREAM_ORG}" --format=json --upstream "${UPS
 
 # Loop through site ID, get git info, add remote.
 jq -n "$SITES" | jq '. | to_entries | .[].key' | while read i; do
+    (
+        # Extract site info
+        SITE_ID=$(echo ${i} | tr -d '"')
+        SITE=$(jq -n "$SITES" | jq -r .${i})
+        SITE_NAME=$(echo ${SITE} | jq -r .name)
+        SITE_GIT="ssh://codeserver.dev.${SITE_ID}@codeserver.dev.${SITE_ID}.drush.in:2222/~/repository.git"
+        SITE_HOST="codeserver.dev.${SITE_ID}.drush.in"
 
-    # Extract site info
-    SITE_ID=$(echo ${i} | tr -d '"')
-    SITE=$(jq -n "$SITES" | jq -r .${i})
-    SITE_NAME=$(echo ${SITE} | jq -r .name)
-    SITE_GIT="ssh://codeserver.dev.${SITE_ID}@codeserver.dev.${SITE_ID}.drush.in:2222/~/repository.git"
-    SITE_HOST="codeserver.dev.${SITE_ID}.drush.in"
+        # Check if frozen
+        FROZEN=$(echo ${SITE} | jq -r .frozen)
+        if [ "$FROZEN" = "true" ]; then
+            # Skip this iteration if the condition is true
+            echo "${red}$SITE_NAME${reset} is frozen. Skipping..."
+            continue
+        fi
 
-    # Ensure site is in Git mode
-    terminus connection:set "${SITE_ID}.${SITE_ENV}" git --yes
+        # Ensure site is in Git mode
+        terminus connection:set "${SITE_ID}.${SITE_ENV}" git --yes
 
-    # Add git remote
-    echo "Add git remote for ${yellow}${SITE_NAME}${reset}..."
-    git remote add ${SITE_NAME} ${SITE_GIT}
+        # Add git remote
+        echo "Add git remote for ${yellow}${SITE_NAME}${reset}..."
+        git remote add ${SITE_NAME} ${SITE_GIT}
+    ) &
 done
+
+# Wait for processes to complete.
+wait
 
 # Fetches all remotes
 echo ""
@@ -114,43 +136,48 @@ echo "id,name,upstream,upstream_status,diff_status" >> $AUDIT_FILE
 
 # Loop through site ID, get git info, check diff.
 jq -n "$SITES" | jq '. | to_entries | .[].key' | while read i; do
+    (
 
-    # Extract site info
-    SITE_ID=$(echo ${i} | tr -d '"')
-    SITE=$(jq -n "$SITES" | jq -r .${i})
-    SITE_NAME=$(echo ${SITE} | jq -r .name)
+        # Extract site info
+        SITE_ID=$(echo ${i} | tr -d '"')
+        SITE=$(jq -n "$SITES" | jq -r .${i})
+        SITE_NAME=$(echo ${SITE} | jq -r .name)
 
-    # Ensure live environment is initialized
-    LIVE_CHECK=$(terminus env:info "${SITE_NAME}.${SITE_ENV}" --format=json)
-    if [[ "$(echo ${LIVE_CHECK} | jq -r .initialized)" == "false" ]]; then
-        echo "${yellow}${SITE_NAME}.live is not initialized. Skipping...${reset}"
-        continue
-    fi
+        # Ensure live environment is initialized
+        LIVE_CHECK=$(terminus env:info "${SITE_NAME}.${SITE_ENV}" --format=json)
+        if [[ "$(echo ${LIVE_CHECK} | jq -r .initialized)" == "false" ]]; then
+            echo "${yellow}${SITE_NAME}.live is not initialized. Skipping...${reset}"
+            continue
+        fi
 
-    # Get upstream status
-    echo "Getting upstream status for ${yellow}${SITE_NAME}${reset}..."
-    UPSTREAM_STATUS=$(terminus upstream:updates:status ${SITE_ID}.${SITE_ENV})
+        # Get upstream status
+        echo "Getting upstream status for ${yellow}${SITE_NAME}${reset}..."
+        UPSTREAM_STATUS=$(terminus upstream:updates:status ${SITE_ID}.${SITE_ENV})
 
-    # Use dev for debugging.
-    # UPSTREAM_STATUS=$(terminus upstream:updates:status ${SITE_ID}.dev)
+        # Use dev for debugging.
+        # UPSTREAM_STATUS=$(terminus upstream:updates:status ${SITE_ID}.dev)
 
-    # Get diff of each remote
-    echo "Getting diff for ${yellow}${SITE_NAME}${reset}..."
-    OUTPUT=$(git diff origin/master ${SITE_NAME}/master --shortstat)
-    DIFF_LEN=${#OUTPUT}
-    
-    # Check if diff exists.
-    DIFF_STATUS=''
-    if [ $DIFF_LEN -gt 0 ]; then
-        DIFF_STATUS='DIFF'
-    fi
+        # Get diff of each remote
+        echo "Getting diff for ${yellow}${SITE_NAME}${reset}..."
+        OUTPUT=$(git diff origin/master ${SITE_NAME}/master --shortstat)
+        DIFF_LEN=${#OUTPUT}
+        
+        # Check if diff exists.
+        DIFF_STATUS=''
+        if [ $DIFF_LEN -gt 0 ]; then
+            DIFF_STATUS='DIFF'
+        fi
 
-    if [[ $DIFF_STATUS == "DIFF" ]]; then
-        echo "${red}Diff found for ${yellow}${SITE_NAME}...${reset}"
-    fi
-    
-    echo "${SITE_ID},${SITE_NAME},${UPSTREAM_NAME},${UPSTREAM_STATUS},${DIFF_STATUS}" >> $AUDIT_FILE
+        if [[ $DIFF_STATUS == "DIFF" ]]; then
+            echo "${red}Diff found for ${yellow}${SITE_NAME}...${reset}"
+        fi
+        
+        echo "${SITE_ID},${SITE_NAME},${UPSTREAM_NAME},${UPSTREAM_STATUS},${DIFF_STATUS}" >> $AUDIT_FILE
+    ) &
 done
+
+# Wait for processes to complete.
+wait
 
 # Print audit status and path to results.
 echo "${green}Audit complete, results here:${reset} ${AUDIT_FILE}"

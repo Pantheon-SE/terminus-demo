@@ -39,14 +39,10 @@ Finished dunder-mifflin-drupal in 0.58 minutes
 
 When generating a site artifact through an external build process or CI system, you can use this method to sync the code to a Pantheon site through a manual deployment of code, especially if the sites do not share a common git history. This will enable SFTP mode on the site, sync the code, and then commit it on the Pantheon side.
 
-```
-./terminus-deploy-sftp.sh dunder-mifflin-drupal
-```
-
-## Terminus Git Audit
+## Terminus Git Auditor
 
 ```
 ./terminus-git-auditor <upstream ID>
 ```
 
-The intention of this script is to audit sites created from an upstream to check if their code is in complete compliance with the upstream code, identifying which sites are outdated, or have an altered git state that does not match the upstream, and the produce a report in a CSV format.
+The intention of this script is to audit sites created from an upstream to check if their code is in complete compliance with the upstream code, identifying which sites are outdated, or have an altered git state that does not match the upstream, and then provide a CSV report of the findings.
