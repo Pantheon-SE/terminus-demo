@@ -3,6 +3,7 @@
 This repo is a sample of demo deploy scripts to showcase how Terminus works.
 
 ## Terminus Deploy sequence
+### Dependencies: working terminus environment (assumed), jq 
 
 ```bash
 ./terminus-deploy-sequence.sh <site_id>
